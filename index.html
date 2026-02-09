@@ -136,45 +136,51 @@
         const db = firebase.database();
 
         // ดึงข้อมูล Real-time
-        db.ref("Monitor").on("value", (snapshot) => {
+       db.ref("Monitor").on("value", (snapshot) => {
     const data = snapshot.val();
     if(!data) return;
 
-    // อัปเดตอุณหภูมิ (อันนี้ของคุณขึ้นแล้ว)
-    document.getElementById("temp").innerText = (data.temp || 0) + " °C";
+    // 1. อัปเดตอุณหภูมิ
+    document.getElementById("temp").innerText = (data.temp || 0).toFixed(1) + " °C";
     
-    // --- จุดที่ต้องแก้ให้ตรงกับรูปที่ 7 ---
+    // 2. อัปเดตแรงสั่นสะเทือน (เช็กให้ชัวร์ว่า Arduino ส่งชื่อ vibrate)
     const vibEl = document.getElementById("vib");
-    // ต้องใช้ data.vibrate (ห้ามพิมพ์ผิดแม้แต่ตัวเดียว)
-    if (data.vibrate === true || data.vibrate === "true") { 
-        vibEl.innerText = "🚨 เกิดการสั่นสะเทือน!";
+    // แก้ไขเงื่อนไขให้ครอบคลุมทั้งแบบ Boolean และ String
+    if (data.vibrate === true || data.vibrate === "true") {
+        vibEl.innerText = "🚨 มีการสั่น!";
         vibEl.style.color = "#ef4444"; // สีแดง
     } else {
         vibEl.innerText = "ปกติ";
-        vibEl.style.color = "#38bdf8"; // สีฟ้าปกติ
+        vibEl.style.color = "#38bdf8"; // สีฟ้า
     }
 
-    // อัปเดตสถานะเสียง (ใช้ data.sound_alert ให้ตรงกับรูปที่ 7)
+    // 3. อัปเดตสถานะเสียง
     const sndEl = document.getElementById("snd");
-    sndEl.innerText = data.sound_alert ? "🚨 เสียงดัง!" : "ปกติ";
-    sndEl.style.color = data.sound_alert ? "#ef4444" : "#38bdf8";
+    if (data.sound_alert === true || data.sound_alert === "true") {
+        sndEl.innerText = "🚨 เสียงดัง!";
+        sndEl.style.color = "#ef4444";
+    } else {
+        sndEl.innerText = "ปกติ";
+        sndEl.style.color = "#38bdf8";
+    }
 
-            // อัปเดตบัสเซอร์
-            document.getElementById("bz").innerText = data.alert ? "เปิด" : "ปิด";
+    // 4. อัปเดตบัสเซอร์ และสถานะหลัก
+    const bzEl = document.getElementById("bz");
+    const badge = document.getElementById("statusBadge");
+    const card = document.getElementById("mainCard");
 
-            // ปรับแต่งการแสดงผลภาพรวม
-            const badge = document.getElementById("statusBadge");
-            const card = document.getElementById("mainCard");
-            if (data.alert) {
-                badge.innerText = "🚨 ตรวจพบเหตุผิดปกติ!";
-                badge.className = "status-badge bg-alert";
-                card.classList.add("alert-active");
-            } else {
-                badge.innerText = "✅ สถานะระบบปกติ";
-                badge.className = "status-badge bg-normal";
-                card.classList.remove("alert-active");
-            }
-        });
+    if (data.alert === true || data.alert === "true") {
+        bzEl.innerText = "เปิด";
+        badge.innerText = "🚨 ตรวจพบเหตุผิดปกติ!";
+        badge.className = "status-badge bg-alert";
+        card.classList.add("alert-active");
+    } else {
+        bzEl.innerText = "ปิด";
+        badge.innerText = "✅ สถานะระบบปกติ";
+        badge.className = "status-badge bg-normal";
+        card.classList.remove("alert-active");
+    }
+});
 
         function controlBuzzer(status) {
             // เฉพาะปิดเสียง แต่ไม่รีเซ็ตสถานะการสั่น (ถ้ายังสั่นอยู่บอร์ดอาจจะร้องใหม่ตาม Logic)
