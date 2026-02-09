@@ -137,21 +137,27 @@
 
         // ดึงข้อมูล Real-time
         db.ref("Monitor").on("value", (snapshot) => {
-            const data = snapshot.val();
-            if(!data) return;
+    const data = snapshot.val();
+    if(!data) return;
 
-            // อัปเดตอุณหภูมิ
-            document.getElementById("temp").innerText = (data.temp || 0) + " °C";
-            
-            // อัปเดตสถานะแรงสั่น (ถ้าสั่นให้เป็นสีแดง)
-            const vibEl = document.getElementById("vib");
-            vibEl.innerText = data.vibrate ? "🚨 มีการสั่น!" : "ปกติ";
-            vibEl.style.color = data.vibrate ? "#ef4444" : "#38bdf8";
+    // อัปเดตอุณหภูมิ (อันนี้ของคุณขึ้นแล้ว)
+    document.getElementById("temp").innerText = (data.temp || 0) + " °C";
+    
+    // --- จุดที่ต้องแก้ให้ตรงกับรูปที่ 7 ---
+    const vibEl = document.getElementById("vib");
+    // ต้องใช้ data.vibrate (ห้ามพิมพ์ผิดแม้แต่ตัวเดียว)
+    if (data.vibrate === true || data.vibrate === "true") { 
+        vibEl.innerText = "🚨 เกิดการสั่นสะเทือน!";
+        vibEl.style.color = "#ef4444"; // สีแดง
+    } else {
+        vibEl.innerText = "ปกติ";
+        vibEl.style.color = "#38bdf8"; // สีฟ้าปกติ
+    }
 
-            // อัปเดตสถานะเสียง
-            const sndEl = document.getElementById("snd");
-            sndEl.innerText = data.sound_alert ? "🚨 เสียงดัง!" : "ปกติ";
-            sndEl.style.color = data.sound_alert ? "#ef4444" : "#38bdf8";
+    // อัปเดตสถานะเสียง (ใช้ data.sound_alert ให้ตรงกับรูปที่ 7)
+    const sndEl = document.getElementById("snd");
+    sndEl.innerText = data.sound_alert ? "🚨 เสียงดัง!" : "ปกติ";
+    sndEl.style.color = data.sound_alert ? "#ef4444" : "#38bdf8";
 
             // อัปเดตบัสเซอร์
             document.getElementById("bz").innerText = data.alert ? "เปิด" : "ปิด";
