@@ -188,16 +188,22 @@
             alert("สั่งการบัสเซอร์เรียบร้อย");
         }
 
-       function resetSystem() {
-    // เขียนค่ากลับไปเป็นปกติทั้งหมด
+      function controlBuzzer(status) {
+    // status ที่รับมาเป็น false
+    db.ref("Monitor/alert").set(status)
+    .then(() => {
+        alert("ปิดเสียงบัสเซอร์แล้ว");
+    });
+}
+
+function resetSystem() {
+    // รีเซ็ตทุกอย่างเป็นปกติ
     db.ref("Monitor").update({
         alert: false,
         vibrate: false,
         sound_alert: false
     }).then(() => {
-        alert("รีเซ็ตสถานะและปิดบัสเซอร์เรียบร้อยแล้ว");
-    }).catch((error) => {
-        console.error("Firebase Error:", error);
+        alert("รีเซ็ตระบบและล้างสถานะแจ้งเตือนแล้ว");
     });
 }
     </script>
