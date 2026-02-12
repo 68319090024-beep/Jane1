@@ -53,7 +53,7 @@
         .val { font-size: 18px; font-weight: bold; display: block; margin-top: 5px; }
         .label { font-size: 14px; color: #94a3b8; }
         
-        /* Animation เมื่อเกิดเหตุการณ์สั่น */
+        /* Alert Animation */
         .alert-active { border: 2px solid var(--danger-color); animation: pulse 2s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
 
@@ -77,12 +77,13 @@
         button:active { transform: scale(0.98); }
         
         .status-badge {
-            padding: 8px 16px;
+            padding: 10px 20px;
             border-radius: 20px;
             font-size: 18px;
             display: inline-block;
             margin-bottom: 15px;
             font-weight: bold;
+            min-width: 200px;
         }
         .bg-normal { background: rgba(34, 197, 94, 0.2); color: var(--success-color); }
         .bg-alert { background: rgba(239, 68, 68, 0.2); color: var(--danger-color); }
@@ -132,7 +133,7 @@
     </div>
 
     <script>
-        // --- 1. ตั้งค่า Firebase ---
+        // --- 1. ตั้งค่า Firebase (กรุณาใช้ของคุณเอง) ---
         const firebaseConfig = {
             apiKey: "ใส่_API_KEY_จริง_ของคุณ", 
             databaseURL: "https://kun16-95305-default-rtdb.firebaseio.com",
@@ -141,28 +142,28 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // --- 2. ฟังก์ชันดึงข้อมูล Real-time ---
+        // --- 2. ดึงข้อมูล Real-time ---
         db.ref("Monitor").on("value", (snapshot) => {
             const data = snapshot.val();
             if(!data) return;
 
+            // ฟังก์ชันเช็กค่า True/False แบบยืดหยุ่น
+            const isTrue = (val) => val === true || val === "true" || val == 1 || val === "1";
+
             // อัปเดตอุณหภูมิ
             document.getElementById("temp").innerText = (data.temp || 0).toFixed(1) + " °C";
             
-            // ฟังก์ชันตรวจสอบว่าเป็นค่า "จริง" (ไม่ว่าเป็น boolean, string, หรือ number)
-            const isTrue = (val) => val === true || val === "true" || val == 1 || val === "1";
-
-            // ตรวจสอบการสั่น (Vibrate)
+            // อัปเดตสถานะแรงสั่นสะเทือน (เปลี่ยนเป็นข้อความพบแรงสั่นสะเทือน)
             const vibEl = document.getElementById("vib");
             if (isTrue(data.vibrate)) {
-                vibEl.innerText = "🚨 มีการสั่น!";
+                vibEl.innerText = "พบแรงสั่นสะเทือน";
                 vibEl.style.color = "#ef4444";
             } else {
                 vibEl.innerText = "ปกติ";
                 vibEl.style.color = "#38bdf8";
             }
 
-            // ตรวจสอบเสียง (Sound)
+            // อัปเดตสถานะเสียง
             const sndEl = document.getElementById("snd");
             if (isTrue(data.sound_alert)) {
                 sndEl.innerText = "🚨 เสียงดัง!";
@@ -172,7 +173,7 @@
                 sndEl.style.color = "#38bdf8";
             }
 
-            // สถานะบัสเซอร์และการแจ้งเตือนหลัก
+            // อัปเดตบัสเซอร์และสถานะหลัก (รวมเวลาที่เกิดเหตุ)
             const bzEl = document.getElementById("bz");
             const badge = document.getElementById("statusBadge");
             const card = document.getElementById("mainCard");
@@ -180,13 +181,20 @@
             if (isTrue(data.alert)) {
                 bzEl.innerText = "เปิด";
                 bzEl.style.color = "#ef4444";
-                badge.innerText = "🚨 ตรวจพบเหตุผิดปกติ!";
+                
+                // สร้างเวลาปัจจุบันเพื่อแจ้งเตือน
+                const now = new Date();
+                const timeStr = now.getHours().toString().padStart(2, '0') + ":" + 
+                              now.getMinutes().toString().padStart(2, '0') + ":" + 
+                              now.getSeconds().toString().padStart(2, '0');
+
+                badge.innerHTML = `<i class="fas fa-exclamation-triangle"></i> พบแรงสั่นสะเทือน! <br> <small>เวลา: ${timeStr}</small>`;
                 badge.className = "status-badge bg-alert";
                 card.classList.add("alert-active");
             } else {
                 bzEl.innerText = "ปิด";
                 bzEl.style.color = "#38bdf8";
-                badge.innerText = "✅ สถานะระบบปกติ";
+                badge.innerHTML = `<i class="fas fa-check-circle"></i> สถานะระบบปกติ`;
                 badge.className = "status-badge bg-normal";
                 card.classList.remove("alert-active");
             }
@@ -195,18 +203,15 @@
         // --- 3. ฟังก์ชันควบคุม ---
         function controlBuzzer(status) {
             db.ref("Monitor/alert").set(status)
-            .then(() => alert("ส่งคำสั่งเรียบร้อยแล้ว"))
-            .catch((error) => console.error("Error:", error));
+            .then(() => alert("สั่งการบัสเซอร์เรียบร้อย"));
         }
 
         function resetSystem() {
-            if(confirm("ต้องการรีเซ็ตสถานะทั้งหมดเป็นปกติใช่หรือไม่?")) {
+            if(confirm("ต้องการรีเซ็ตสถานะและล้างการแจ้งเตือนใช่หรือไม่?")) {
                 db.ref("Monitor").update({
                     alert: false,
                     vibrate: false,
                     sound_alert: false
-                }).then(() => {
-                    alert("รีเซ็ตสถานะเรียบร้อยแล้ว");
                 });
             }
         }
