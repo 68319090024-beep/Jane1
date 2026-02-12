@@ -3,139 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Earthquake & Light Monitor</title>
+    <title>LDR Monitor - Realtime</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0f172a; --card-bg: #1e293b; --primary-color: #38bdf8;
-            --danger-color: #ef4444; --success-color: #22c55e; --warning-color: #f59e0b;
+            --bg-color: #0f172a; --card-bg: #1e293b; 
+            --primary: #38bdf8; --danger: #ef4444; --success: #22c55e; --warning: #f59e0b;
         }
-        body { font-family: 'Kanit', sans-serif; background-color: var(--bg-color); color: #f8fafc; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 500px; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .status-card { background: var(--card-bg); padding: 25px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; border: 1px solid #334155; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
-        .sensor-item { background: #334155; padding: 15px; border-radius: 16px; position: relative; overflow: hidden; }
-        .sensor-item:first-child { grid-column: span 2; }
-        .sensor-item i { font-size: 24px; margin-bottom: 10px; color: var(--primary-color); }
-        .val { font-size: 18px; font-weight: bold; display: block; margin-top: 5px; }
-        .label { font-size: 14px; color: #94a3b8; }
-        .sub-val { font-size: 12px; color: #64748b; display: block; margin-top: 2px; } /* เพิ่มบรรทัดโชว์ตัวเลข */
+        body { font-family: 'Kanit', sans-serif; background-color: var(--bg-color); color: white; display: flex; justify-content: center; padding: 20px; }
+        .container { width: 100%; max-width: 450px; }
         
-        .alert-active { border: 2px solid var(--danger-color); animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-        
-        button { padding: 16px; border: none; border-radius: 12px; width: 100%; margin-top: 20px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .btn-reset { background: var(--success-color); color: white; }
-        .status-badge { padding: 12px 24px; border-radius: 20px; font-size: 20px; display: inline-block; margin-bottom: 15px; font-weight: bold; width: 80%; }
-        .bg-normal { background: rgba(34, 197, 94, 0.2); color: var(--success-color); }
-        .bg-alert { background: rgba(239, 68, 68, 0.2); color: var(--danger-color); }
+        .card {
+            background: var(--card-bg);
+            padding: 25px; border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center; border: 1px solid #334155;
+        }
 
-        /* แถบกราฟ */
-        .light-bar-bg { width: 100%; height: 6px; background: #0f172a; border-radius: 3px; margin-top: 10px; }
-        .light-bar-fill { height: 100%; background: var(--warning-color); width: 0%; border-radius: 3px; transition: width 0.5s; }
+        .sensor-box {
+            background: #334155; padding: 20px;
+            border-radius: 15px; margin-bottom: 15px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        .big-icon { font-size: 40px; margin-bottom: 10px; color: var(--primary); }
+        .label { font-size: 14px; color: #94a3b8; }
+        
+        /* สไตล์สำหรับตัวเลข */
+        .number-display {
+            font-size: 48px; font-weight: bold;
+            color: white;
+            text-shadow: 0 0 10px rgba(255,255,255,0.2);
+            margin: 5px 0;
+        }
+        
+        .status-text { font-size: 18px; font-weight: bold; padding: 5px 15px; border-radius: 10px; margin-top: 5px; }
+        
+        /* ปุ่มรีเซ็ต */
+        button {
+            background: var(--success); color: white;
+            border: none; padding: 15px; width: 100%;
+            border-radius: 12px; font-size: 18px; font-weight: bold;
+            cursor: pointer; margin-top: 10px;
+        }
+        button:active { transform: scale(0.98); }
+
+        .alert-mode { border: 2px solid var(--danger); box-shadow: 0 0 20px var(--danger); }
     </style>
 </head>
 <body>
+
     <div class="container">
-        <div class="header">
-            <h2><i class="fas fa-satellite-dish"></i> Sensor Dashboard</h2>
-        </div>
-
-        <div id="mainCard" class="status-card">
-            <div id="statusBadge" class="status-badge bg-normal">รอข้อมูล...</div>
-            
-            <div class="grid">
-                <div class="sensor-item">
-                    <i class="fas fa-temperature-high"></i>
-                    <span class="label">อุณหภูมิ</span>
-                    <span id="temp" class="val">-- °C</span>
-                </div>
-                
-                <div class="sensor-item">
-                    <i class="fas fa-lightbulb"></i> <span class="label">ปริมาณแสง</span>
-                    <span id="lightStatus" class="val">--</span> <span id="lightNum" class="sub-val">ค่า: --</span> <div class="light-bar-bg"><div id="lightBar" class="light-bar-fill"></div></div>
-                </div>
-
-                <div class="sensor-item">
-                    <i class="fas fa-bell"></i>
-                    <span class="label">สถานะแจ้งเตือน</span>
-                    <span id="bz" class="val">ปกติ</span>
-                </div>
-            </div>
-
-            <button class="btn-reset" onclick="resetSystem()">
-                <i class="fas fa-sync-alt"></i> รีเซ็ตระบบ
-            </button>
-        </div>
-    </div>
-
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyAlPqcIYDYfRBYwnOKJ4n4KzNLvEEl5x64", 
-            databaseURL: "https://kun16-95305-default-rtdb.firebaseio.com",
-            projectId: "kun16-95305"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
-        db.ref("Monitor").on("value", (snapshot) => {
-            const data = snapshot.val();
-            if(!data) return;
-            const isTrue = (val) => val === true || val === "true";
-
-            // 1. อุณหภูมิ
-            document.getElementById("temp").innerText = (data.temp || 0).toFixed(1) + " °C";
-            
-            // 2. แสง (Logic ใหม่)
-            let lightRaw = data.light_val || 0; // รับค่าตัวเลขจาก Arduino
-            let percentage = ((1024 - lightRaw) / 1024) * 100; // คำนวณกราฟ
-            
-            // แสดงตัวเลขตัวเล็ก
-            document.getElementById("lightNum").innerText = "ค่าเซนเซอร์: " + lightRaw;
-            document.getElementById("lightBar").style.width = percentage + "%";
-
-            // แสดงข้อความเป็นคำว่า "มืด" หรือ "สว่าง"
-            const lightTextEl = document.getElementById("lightStatus");
-            // ถ้าค่าต่ำกว่า 400 คือสว่าง (ตามโค้ด Arduino ที่ตั้งไว้)
-            if (lightRaw < 400) {
-                 lightTextEl.innerText = "สว่าง (แจ้งเตือน)";
-                 lightTextEl.style.color = "#f59e0b"; // สีเหลือง
-            } else {
-                 lightTextEl.innerText = "มืด / ปกติ";
-                 lightTextEl.style.color = "#38bdf8"; // สีฟ้า
-            }
-
-            // 3. แจ้งเตือนหลัก (Buzzer)
-            const bzEl = document.getElementById("bz");
-            const badge = document.getElementById("statusBadge");
-            const card = document.getElementById("mainCard");
-
-            if (isTrue(data.alert)) {
-                bzEl.innerText = "ALARM ON!";
-                bzEl.style.color = "#ef4444";
-                badge.innerHTML = `<i class="fas fa-exclamation-circle"></i> ตรวจพบแสงสว่าง!`;
-                badge.className = "status-badge bg-alert";
-                card.classList.add("alert-active");
-            } else {
-                bzEl.innerText = "ปิด";
-                bzEl.style.color = "#38bdf8";
-                badge.innerHTML = `<i class="fas fa-check-circle"></i> ระบบปกติ`;
-                badge.className = "status-badge bg-normal";
-                card.classList.remove("alert-active");
-            }
-        });
-
-        function resetSystem() {
-            db.ref("Monitor").update({
-                alert: false,
-                vibrate: false,
-                light_alert: false
-            });
-        }
-    </script>
-</body>
-</html>
