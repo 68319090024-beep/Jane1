@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Earthquake Dashboard Pro</title>
+    <title>Earthquake & Light Dashboard</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -94,7 +94,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h2><i class="fas fa-broadcast-tower"></i> Earthquake Dashboard</h2>
+            <h2><i class="fas fa-broadcast-tower"></i> Earthquake & Light Monitor</h2>
         </div>
 
         <div id="mainCard" class="status-card">
@@ -107,9 +107,9 @@
                     <span id="temp" class="val">-- °C</span>
                 </div>
                 <div class="sensor-item">
-                    <i class="fas fa-volume-up"></i>
-                    <span class="label">ตรวจจับเสียง</span>
-                    <span id="snd" class="val">ปกติ</span>
+                    <i class="fas fa-lightbulb"></i>
+                    <span class="label">ตรวจจับแสง</span>
+                    <span id="light" class="val">ปกติ</span>
                 </div>
                 <div class="sensor-item">
                     <i class="fas fa-bell"></i>
@@ -147,14 +147,15 @@
             // 1. อัปเดตอุณหภูมิ
             document.getElementById("temp").innerText = (data.temp || 0).toFixed(1) + " °C";
             
-            // 2. อัปเดตสถานะเสียง
-            const sndEl = document.getElementById("snd");
-            if (isTrue(data.sound_alert)) {
-                sndEl.innerText = "🚨 ตรวจพบเสียง";
-                sndEl.style.color = "#ef4444";
+            // 2. อัปเดตสถานะแสง (เปลี่ยนจาก sound_alert เป็น light_alert)
+            const lightEl = document.getElementById("light");
+            // หมายเหตุ: เช็คทั้ง light_alert (ใหม่) และ sound_alert (เผื่อโค้ดยังเป็นตัวเก่า)
+            if (isTrue(data.light_alert) || isTrue(data.sound_alert)) {
+                lightEl.innerText = "🚨 ตรวจพบแสง!";
+                lightEl.style.color = "#ef4444";
             } else {
-                sndEl.innerText = "ปกติ";
-                sndEl.style.color = "#38bdf8";
+                lightEl.innerText = "มืด/ปกติ";
+                lightEl.style.color = "#38bdf8";
             }
 
             // 3. จัดการสถานะหลัก (การสั่นสะเทือนจะแสดงที่นี่) และบัสเซอร์
@@ -166,7 +167,7 @@
                 bzEl.innerText = isTrue(data.alert) ? "เปิด" : "ปิด";
                 bzEl.style.color = isTrue(data.alert) ? "#ef4444" : "#38bdf8";
                 
-                badge.innerHTML = `<i class="fas fa-exclamation-triangle"></i> พบการสั่นสะเทือน!`;
+                badge.innerHTML = `<i class="fas fa-exclamation-triangle"></i> พบเหตุผิดปกติ!`;
                 badge.className = "status-badge bg-alert";
                 card.classList.add("alert-active");
             } else {
@@ -183,10 +184,12 @@
         }
 
         function resetSystem() {
+            // รีเซ็ตค่าทั้งหมด (เปลี่ยน sound_alert เป็น light_alert)
             db.ref("Monitor").update({
                 alert: false,
                 vibrate: false,
-                sound_alert: false
+                light_alert: false, // เพิ่มตัวใหม่
+                sound_alert: false  // ล้างตัวเก่าด้วยเผื่อมีค้าง
             });
         }
     </script>
