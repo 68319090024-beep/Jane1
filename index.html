@@ -3,129 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Earthquake & Light Dashboard</title>
+    <title>Earthquake & Light Monitor</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --primary-color: #38bdf8;
-            --danger-color: #ef4444;
-            --success-color: #22c55e;
-            --warning-color: #f59e0b;
+            --bg-color: #0f172a; --card-bg: #1e293b; --primary-color: #38bdf8;
+            --danger-color: #ef4444; --success-color: #22c55e; --warning-color: #f59e0b;
         }
-        body {
-            font-family: 'Kanit', sans-serif;
-            background-color: var(--bg-color);
-            color: #f8fafc;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-        }
+        body { font-family: 'Kanit', sans-serif; background-color: var(--bg-color); color: #f8fafc; margin: 0; padding: 20px; display: flex; justify-content: center; }
         .container { width: 100%; max-width: 500px; }
         .header { text-align: center; margin-bottom: 30px; }
-        .status-card {
-            background: var(--card-bg);
-            padding: 25px;
-            border-radius: 24px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            text-align: center;
-            border: 1px solid #334155;
-            transition: all 0.5s ease;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 15px;
-            margin-top: 20px;
-        }
-        @media (min-width: 400px) {
-            .grid { grid-template-columns: 1fr 1fr; }
-            .sensor-item:first-child { grid-column: span 2; } 
-        }
-        .sensor-item {
-            background: #334155;
-            padding: 15px;
-            border-radius: 16px;
-            transition: 0.3s;
-        }
+        .status-card { background: var(--card-bg); padding: 25px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; border: 1px solid #334155; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .sensor-item { background: #334155; padding: 15px; border-radius: 16px; position: relative; overflow: hidden; }
+        .sensor-item:first-child { grid-column: span 2; }
         .sensor-item i { font-size: 24px; margin-bottom: 10px; color: var(--primary-color); }
         .val { font-size: 18px; font-weight: bold; display: block; margin-top: 5px; }
         .label { font-size: 14px; color: #94a3b8; }
+        .sub-val { font-size: 12px; color: #64748b; display: block; margin-top: 2px; } /* เพิ่มบรรทัดโชว์ตัวเลข */
         
         .alert-active { border: 2px solid var(--danger-color); animation: pulse 2s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-
-        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 25px; }
-        button {
-            padding: 16px;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            transition: 0.2s;
-        }
-        .btn-reset { background: var(--success-color); color: white; }
-        .btn-mute { background: var(--warning-color); color: white; }
-        button:active { transform: scale(0.98); }
         
-        .status-badge {
-            padding: 12px 24px;
-            border-radius: 20px;
-            font-size: 20px;
-            display: inline-block;
-            margin-bottom: 15px;
-            font-weight: bold;
-            width: 80%;
-        }
+        button { padding: 16px; border: none; border-radius: 12px; width: 100%; margin-top: 20px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-reset { background: var(--success-color); color: white; }
+        .status-badge { padding: 12px 24px; border-radius: 20px; font-size: 20px; display: inline-block; margin-bottom: 15px; font-weight: bold; width: 80%; }
         .bg-normal { background: rgba(34, 197, 94, 0.2); color: var(--success-color); }
         .bg-alert { background: rgba(239, 68, 68, 0.2); color: var(--danger-color); }
+
+        /* แถบกราฟ */
+        .light-bar-bg { width: 100%; height: 6px; background: #0f172a; border-radius: 3px; margin-top: 10px; }
+        .light-bar-fill { height: 100%; background: var(--warning-color); width: 0%; border-radius: 3px; transition: width 0.5s; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h2><i class="fas fa-broadcast-tower"></i> Earthquake & Light Monitor</h2>
+            <h2><i class="fas fa-satellite-dish"></i> Sensor Dashboard</h2>
         </div>
 
         <div id="mainCard" class="status-card">
-            <div id="statusBadge" class="status-badge bg-normal">กำลังเชื่อมต่อ...</div>
+            <div id="statusBadge" class="status-badge bg-normal">รอข้อมูล...</div>
             
             <div class="grid">
                 <div class="sensor-item">
-                    <i class="fas fa-thermometer-half"></i>
+                    <i class="fas fa-temperature-high"></i>
                     <span class="label">อุณหภูมิ</span>
                     <span id="temp" class="val">-- °C</span>
                 </div>
+                
                 <div class="sensor-item">
-                    <i class="fas fa-lightbulb"></i>
-                    <span class="label">ตรวจจับแสง</span>
-                    <span id="light" class="val">ปกติ</span>
+                    <i class="fas fa-lightbulb"></i> <span class="label">ปริมาณแสง</span>
+                    <span id="lightStatus" class="val">--</span> <span id="lightNum" class="sub-val">ค่า: --</span> <div class="light-bar-bg"><div id="lightBar" class="light-bar-fill"></div></div>
                 </div>
+
                 <div class="sensor-item">
                     <i class="fas fa-bell"></i>
-                    <span class="label">บัสเซอร์</span>
-                    <span id="bz" class="val">ปิด</span>
+                    <span class="label">สถานะแจ้งเตือน</span>
+                    <span id="bz" class="val">ปกติ</span>
                 </div>
             </div>
 
-            <div class="btn-group">
-                <button class="btn-mute" onclick="controlBuzzer(false)">
-                    <i class="fas fa-volume-mute"></i> ปิดเสียงบัสเซอร์ชั่วคราว
-                </button>
-                <button class="btn-reset" onclick="resetSystem()">
-                    <i class="fas fa-sync-alt"></i> รีเซ็ตระบบทั้งหมด
-                </button>
-            </div>
+            <button class="btn-reset" onclick="resetSystem()">
+                <i class="fas fa-sync-alt"></i> รีเซ็ตระบบ
+            </button>
         </div>
     </div>
 
@@ -141,33 +85,39 @@
         db.ref("Monitor").on("value", (snapshot) => {
             const data = snapshot.val();
             if(!data) return;
+            const isTrue = (val) => val === true || val === "true";
 
-            const isTrue = (val) => val === true || val === "true" || val == 1 || val === "1";
-
-            // 1. อัปเดตอุณหภูมิ
+            // 1. อุณหภูมิ
             document.getElementById("temp").innerText = (data.temp || 0).toFixed(1) + " °C";
             
-            // 2. อัปเดตสถานะแสง (เปลี่ยนจาก sound_alert เป็น light_alert)
-            const lightEl = document.getElementById("light");
-            // หมายเหตุ: เช็คทั้ง light_alert (ใหม่) และ sound_alert (เผื่อโค้ดยังเป็นตัวเก่า)
-            if (isTrue(data.light_alert) || isTrue(data.sound_alert)) {
-                lightEl.innerText = "🚨 ตรวจพบแสง!";
-                lightEl.style.color = "#ef4444";
+            // 2. แสง (Logic ใหม่)
+            let lightRaw = data.light_val || 0; // รับค่าตัวเลขจาก Arduino
+            let percentage = ((1024 - lightRaw) / 1024) * 100; // คำนวณกราฟ
+            
+            // แสดงตัวเลขตัวเล็ก
+            document.getElementById("lightNum").innerText = "ค่าเซนเซอร์: " + lightRaw;
+            document.getElementById("lightBar").style.width = percentage + "%";
+
+            // แสดงข้อความเป็นคำว่า "มืด" หรือ "สว่าง"
+            const lightTextEl = document.getElementById("lightStatus");
+            // ถ้าค่าต่ำกว่า 400 คือสว่าง (ตามโค้ด Arduino ที่ตั้งไว้)
+            if (lightRaw < 400) {
+                 lightTextEl.innerText = "สว่าง (แจ้งเตือน)";
+                 lightTextEl.style.color = "#f59e0b"; // สีเหลือง
             } else {
-                lightEl.innerText = "มืด/ปกติ";
-                lightEl.style.color = "#38bdf8";
+                 lightTextEl.innerText = "มืด / ปกติ";
+                 lightTextEl.style.color = "#38bdf8"; // สีฟ้า
             }
 
-            // 3. จัดการสถานะหลัก (การสั่นสะเทือนจะแสดงที่นี่) และบัสเซอร์
+            // 3. แจ้งเตือนหลัก (Buzzer)
             const bzEl = document.getElementById("bz");
             const badge = document.getElementById("statusBadge");
             const card = document.getElementById("mainCard");
 
-            if (isTrue(data.vibrate) || isTrue(data.alert)) {
-                bzEl.innerText = isTrue(data.alert) ? "เปิด" : "ปิด";
-                bzEl.style.color = isTrue(data.alert) ? "#ef4444" : "#38bdf8";
-                
-                badge.innerHTML = `<i class="fas fa-exclamation-triangle"></i> พบเหตุผิดปกติ!`;
+            if (isTrue(data.alert)) {
+                bzEl.innerText = "ALARM ON!";
+                bzEl.style.color = "#ef4444";
+                badge.innerHTML = `<i class="fas fa-exclamation-circle"></i> ตรวจพบแสงสว่าง!`;
                 badge.className = "status-badge bg-alert";
                 card.classList.add("alert-active");
             } else {
@@ -179,17 +129,11 @@
             }
         });
 
-        function controlBuzzer(status) {
-            db.ref("Monitor/alert").set(status);
-        }
-
         function resetSystem() {
-            // รีเซ็ตค่าทั้งหมด (เปลี่ยน sound_alert เป็น light_alert)
             db.ref("Monitor").update({
                 alert: false,
                 vibrate: false,
-                light_alert: false, // เพิ่มตัวใหม่
-                sound_alert: false  // ล้างตัวเก่าด้วยเผื่อมีค้าง
+                light_alert: false
             });
         }
     </script>
