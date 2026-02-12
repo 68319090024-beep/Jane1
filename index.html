@@ -37,11 +37,16 @@
             border: 1px solid #334155;
             transition: all 0.5s ease;
         }
+        /* ปรับ Grid ให้แสดงผลสวยงามเมื่อมี 3 กล่อง */
         .grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 15px;
             margin-top: 20px;
+        }
+        @media (min-width: 400px) {
+            .grid { grid-template-columns: 1fr 1fr; }
+            .sensor-item:first-child { grid-column: span 2; } /* ให้อุณหภูมิอยู่แถวบนเดี่ยวๆ */
         }
         .sensor-item {
             background: #334155;
@@ -53,7 +58,6 @@
         .val { font-size: 18px; font-weight: bold; display: block; margin-top: 5px; }
         .label { font-size: 14px; color: #94a3b8; }
         
-        /* Alert Animation */
         .alert-active { border: 2px solid var(--danger-color); animation: pulse 2s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
 
@@ -73,17 +77,16 @@
         }
         .btn-reset { background: var(--success-color); color: white; }
         .btn-mute { background: var(--warning-color); color: white; }
-        button:hover { opacity: 0.9; }
         button:active { transform: scale(0.98); }
         
         .status-badge {
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 20px;
-            font-size: 18px;
+            font-size: 20px;
             display: inline-block;
             margin-bottom: 15px;
             font-weight: bold;
-            min-width: 200px;
+            width: 80%;
         }
         .bg-normal { background: rgba(34, 197, 94, 0.2); color: var(--success-color); }
         .bg-alert { background: rgba(239, 68, 68, 0.2); color: var(--danger-color); }
@@ -103,11 +106,6 @@
                     <i class="fas fa-thermometer-half"></i>
                     <span class="label">อุณหภูมิ</span>
                     <span id="temp" class="val">-- °C</span>
-                </div>
-                <div class="sensor-item">
-                    <i class="fas fa-wave-square"></i>
-                    <span class="label">แรงสั่นสะเทือน</span>
-                    <span id="vib" class="val">ปกติ</span>
                 </div>
                 <div class="sensor-item">
                     <i class="fas fa-volume-up"></i>
@@ -133,7 +131,6 @@
     </div>
 
     <script>
-        // --- 1. ตั้งค่า Firebase (กรุณาใช้ของคุณเอง) ---
         const firebaseConfig = {
             apiKey: "ใส่_API_KEY_จริง_ของคุณ", 
             databaseURL: "https://kun16-95305-default-rtdb.firebaseio.com",
@@ -142,78 +139,57 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // --- 2. ดึงข้อมูล Real-time ---
         db.ref("Monitor").on("value", (snapshot) => {
             const data = snapshot.val();
             if(!data) return;
 
-            // ฟังก์ชันเช็กค่า True/False แบบยืดหยุ่น
             const isTrue = (val) => val === true || val === "true" || val == 1 || val === "1";
 
             // อัปเดตอุณหภูมิ
             document.getElementById("temp").innerText = (data.temp || 0).toFixed(1) + " °C";
             
-            // อัปเดตสถานะแรงสั่นสะเทือน (เปลี่ยนเป็นข้อความพบแรงสั่นสะเทือน)
-            const vibEl = document.getElementById("vib");
-            if (isTrue(data.vibrate)) {
-                vibEl.innerText = "พบแรงสั่นสะเทือน";
-                vibEl.style.color = "#ef4444";
-            } else {
-                vibEl.innerText = "ปกติ";
-                vibEl.style.color = "#38bdf8";
-            }
-
             // อัปเดตสถานะเสียง
             const sndEl = document.getElementById("snd");
             if (isTrue(data.sound_alert)) {
-                sndEl.innerText = "🚨 เสียงดัง!";
+                sndEl.innerText = "🚨 ตรวจพบเสียง";
                 sndEl.style.color = "#ef4444";
             } else {
                 sndEl.innerText = "ปกติ";
                 sndEl.style.color = "#38bdf8";
             }
 
-            // อัปเดตบัสเซอร์และสถานะหลัก (รวมเวลาที่เกิดเหตุ)
+            // จัดการสถานะหลัก (การสั่นสะเทือน) และบัสเซอร์
             const bzEl = document.getElementById("bz");
             const badge = document.getElementById("statusBadge");
             const card = document.getElementById("mainCard");
 
-            if (isTrue(data.alert)) {
-                bzEl.innerText = "เปิด";
-                bzEl.style.color = "#ef4444";
+            // ใช้เงื่อนไข vibrate หรือ alert ในการแสดงข้อความ "พบการสั่นสะเทือน"
+            if (isTrue(data.vibrate) || isTrue(data.alert)) {
+                bzEl.innerText = isTrue(data.alert) ? "เปิด" : "ปิด";
+                bzEl.style.color = isTrue(data.alert) ? "#ef4444" : "#38bdf8";
                 
-                // สร้างเวลาปัจจุบันเพื่อแจ้งเตือน
-                const now = new Date();
-                const timeStr = now.getHours().toString().padStart(2, '0') + ":" + 
-                              now.getMinutes().toString().padStart(2, '0') + ":" + 
-                              now.getSeconds().toString().padStart(2, '0');
-
-                badge.innerHTML = `<i class="fas fa-exclamation-triangle"></i> พบแรงสั่นสะเทือน! <br> <small>เวลา: ${timeStr}</small>`;
+                badge.innerHTML = `<i class="fas fa-exclamation-triangle"></i> พบการสั่นสะเทือน!`;
                 badge.className = "status-badge bg-alert";
                 card.classList.add("alert-active");
             } else {
                 bzEl.innerText = "ปิด";
                 bzEl.style.color = "#38bdf8";
-                badge.innerHTML = `<i class="fas fa-check-circle"></i> สถานะระบบปกติ`;
+                badge.innerHTML = `<i class="fas fa-check-circle"></i> ระบบปกติ`;
                 badge.className = "status-badge bg-normal";
                 card.classList.remove("alert-active");
             }
         });
 
-        // --- 3. ฟังก์ชันควบคุม ---
         function controlBuzzer(status) {
-            db.ref("Monitor/alert").set(status)
-            .then(() => alert("สั่งการบัสเซอร์เรียบร้อย"));
+            db.ref("Monitor/alert").set(status);
         }
 
         function resetSystem() {
-            if(confirm("ต้องการรีเซ็ตสถานะและล้างการแจ้งเตือนใช่หรือไม่?")) {
-                db.ref("Monitor").update({
-                    alert: false,
-                    vibrate: false,
-                    sound_alert: false
-                });
-            }
+            db.ref("Monitor").update({
+                alert: false,
+                vibrate: false,
+                sound_alert: false
+            });
         }
     </script>
 </body>
